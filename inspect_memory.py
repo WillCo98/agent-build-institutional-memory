@@ -32,13 +32,11 @@ def main() -> None:
 
     print(f"Memory store: {store_id}\n" + "=" * 60)
 
-    # Iterating the list result auto-paginates (page.data would be page 1 only)
-    items = list(
-        client.beta.memory_stores.memories.list(
-            store_id,
-            path_prefix="/",
-            order_by="path",
-        )
+    # Iterating the list result auto-paginates (page.data would be page 1 only).
+    # Sort client-side — the SDK's list() takes no order_by parameter.
+    items = sorted(
+        client.beta.memory_stores.memories.list(store_id, path_prefix="/"),
+        key=lambda m: m.path,
     )
     if not items:
         print("(memory store is empty — has run_session_1.py been run?)")
