@@ -1,4 +1,3 @@
 # Managed Agents (memory stores) needs a current SDK — older installs
 # satisfy a low floor but lack client.beta.memory_stores.
 anthropic>=0.116.0
-python-dotenv>=1.0.0

@@ -12,11 +12,9 @@ Usage:
     python run_session_1.py
 """
 
-import os
 from pathlib import Path
 
-from anthropic import Anthropic
-
+from _common import create_session_or_explain, drive_session, get_client, read_id
 
 TEST_QUESTION = (
     "I just joined the company and I need read-only prod access to debug an "
@@ -37,24 +35,20 @@ def load_docs_as_context(docs_dir: Path) -> str:
 
 
 def main() -> None:
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise SystemExit("Set ANTHROPIC_API_KEY before running.")
+    client = get_client()
 
-    for required in (".agent_id", ".environment_id", ".memory_store_id"):
-        if not Path(required).exists():
-            raise SystemExit(f"Missing {required}. Run create_agent.py first.")
-
-    agent_id = Path(".agent_id").read_text().strip()
-    environment_id = Path(".environment_id").read_text().strip()
-    memory_store_id = Path(".memory_store_id").read_text().strip()
-
-    client = Anthropic()
+    hint = "Run create_agent.py first."
+    agent_id = read_id(".agent_id", hint)
+    environment_id = read_id(".environment_id", hint)
+    memory_store_id = read_id(".memory_store_id", hint)
 
     print(f"Loading round1 docs from {DOCS_DIR}/...")
     context = load_docs_as_context(DOCS_DIR)
 
     print(f"\nStarting session with memory store {memory_store_id} attached...")
-    session = client.beta.sessions.create(
+    session = create_session_or_explain(
+        client,
+        [".agent_id", ".environment_id", ".memory_store_id"],
         agent=agent_id,
         environment_id=environment_id,
         title="Session 1 — baseline",
@@ -84,36 +78,37 @@ def main() -> None:
         f"QUESTION: {TEST_QUESTION}"
     )
 
-    final_text_parts: list[str] = []
+    final_text_parts: list = []
     print("\nAgent working...\n")
-    with client.beta.sessions.events.stream(session.id) as stream:
-        client.beta.sessions.events.send(
-            session.id,
-            events=[
-                {
-                    "type": "user.message",
-                    "content": [{"type": "text", "text": user_message}],
-                }
-            ],
-        )
-        for event in stream:
-            if event.type == "agent.message":
-                for block in event.content:
-                    if getattr(block, "type", None) == "text":
-                        final_text_parts.append(block.text)
-                        print(block.text, end="", flush=True)
-            elif event.type == "agent.tool_use":
-                # Show file ops on /mnt/memory/ in particular — that's the demo
-                name = getattr(event, "name", "?")
-                inp = getattr(event, "input", {}) or {}
-                target = inp.get("path") or inp.get("file_path") or inp.get("command") or ""
-                if "/mnt/memory" in str(target):
-                    print(f"\n  [memory: {name}  {target}]", flush=True)
-                else:
-                    print(f"\n  [{name}]", flush=True)
-            elif event.type == "session.status_idle":
-                print("\n\n[agent finished]")
-                break
+
+    def on_event(event):
+        if event.type == "agent.message":
+            for block in event.content:
+                if getattr(block, "type", None) == "text":
+                    final_text_parts.append(block.text)
+                    print(block.text, end="", flush=True)
+        elif event.type == "agent.tool_use":
+            # Show file ops on /mnt/memory/ in particular — that's the demo
+            name = getattr(event, "name", "?")
+            inp = getattr(event, "input", {}) or {}
+            target = inp.get("path") or inp.get("file_path") or inp.get("command") or ""
+            if "/mnt/memory" in str(target):
+                print(f"\n  [memory: {name}  {target}]", flush=True)
+            else:
+                print(f"\n  [{name}]", flush=True)
+
+    drive_session(
+        client,
+        session,
+        kickoff_events=[
+            {
+                "type": "user.message",
+                "content": [{"type": "text", "text": user_message}],
+            }
+        ],
+        on_event=on_event,
+    )
+    print("\n\n[agent finished]")
 
     final_text = "".join(final_text_parts)
     OUTPUT_DIR.mkdir(exist_ok=True)

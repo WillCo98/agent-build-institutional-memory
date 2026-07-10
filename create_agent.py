@@ -16,10 +16,11 @@ Usage:
     python create_agent.py
 """
 
-import os
 from pathlib import Path
 
-from anthropic import Anthropic
+import anthropic
+
+from _common import get_client
 
 
 SYSTEM_PROMPT = """\
@@ -59,10 +60,7 @@ across sessions. Treat it like the team wiki.
 
 
 def main() -> None:
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise SystemExit("Set ANTHROPIC_API_KEY before running.")
-
-    client = Anthropic()
+    client = get_client()
 
     # Re-running this script must not duplicate resources: agents and memory
     # stores are reused via their saved ID files, and environments are looked
@@ -72,11 +70,19 @@ def main() -> None:
     # 1. Agent
     if Path(".agent_id").exists():
         agent_id = Path(".agent_id").read_text().strip()
-        print(f"Reusing agent:        {agent_id}")
+        try:
+            client.beta.agents.retrieve(agent_id)
+            print(f"Reusing agent:        {agent_id}")
+        except anthropic.APIStatusError:
+            raise SystemExit(
+                f"Saved .agent_id ({agent_id[:18]}…) is unreachable with this key "
+                "(deleted, or another workspace). Delete .agent_id and re-run — "
+                "or run `python check_setup.py` to validate all saved state."
+            )
     else:
         agent = client.beta.agents.create(
             name="Institutional Memory Agent",
-            model="claude-sonnet-4-6",
+            model="claude-sonnet-5",
             system=SYSTEM_PROMPT,
             tools=[{"type": "agent_toolset_20260401"}],
             metadata={"hackathon": "partner-basecamp-2026", "track": "memory-agent"},

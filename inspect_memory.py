@@ -10,34 +10,35 @@ Usage:
     python inspect_memory.py --full       # full content of every memory
 """
 
-import os
 import sys
-from pathlib import Path
 
-from anthropic import Anthropic
+import anthropic
+
+from _common import get_client, read_id
 
 
 def main() -> None:
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise SystemExit("Set ANTHROPIC_API_KEY before running.")
-
-    store_id_path = Path(".memory_store_id")
-    if not store_id_path.exists():
-        raise SystemExit("Missing .memory_store_id. Run create_agent.py first.")
-    store_id = store_id_path.read_text().strip()
-
+    store_id = read_id(".memory_store_id", "Run create_agent.py first.")
     full = "--full" in sys.argv
 
-    client = Anthropic()
+    client = get_client()
 
     print(f"Memory store: {store_id}\n" + "=" * 60)
 
     # Iterating the list result auto-paginates (page.data would be page 1 only).
     # Sort client-side — the SDK's list() takes no order_by parameter.
-    items = sorted(
-        client.beta.memory_stores.memories.list(store_id, path_prefix="/"),
-        key=lambda m: m.path,
-    )
+    try:
+        items = sorted(
+            client.beta.memory_stores.memories.list(store_id, path_prefix="/"),
+            key=lambda m: m.path,
+        )
+    except anthropic.APIStatusError as e:
+        raise SystemExit(
+            f"Could not read that memory store ({e}).\n"
+            "Most likely .memory_store_id is stale (deleted, or another "
+            "workspace). Delete it and re-run create_agent.py, or run "
+            "`python check_setup.py` to validate all saved state."
+        )
     if not items:
         print("(memory store is empty — has run_session_1.py been run?)")
         return

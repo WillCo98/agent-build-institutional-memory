@@ -22,10 +22,9 @@ Usage:
     python stretch_memory_curator.py     (run after at least one session)
 """
 
-import os
 from pathlib import Path
 
-from anthropic import Anthropic
+from _common import create_session_or_explain, drive_session, get_client, read_id
 
 
 CURATOR_SYSTEM_PROMPT = """\
@@ -47,17 +46,11 @@ Do NOT add new knowledge. Do NOT answer domain questions. You only clean.
 
 
 def main() -> None:
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise SystemExit("Set ANTHROPIC_API_KEY before running.")
+    client = get_client()
 
-    for required in (".environment_id", ".memory_store_id"):
-        if not Path(required).exists():
-            raise SystemExit(f"Missing {required}. Run create_agent.py first.")
-
-    environment_id = Path(".environment_id").read_text().strip()
-    memory_store_id = Path(".memory_store_id").read_text().strip()
-
-    client = Anthropic()
+    hint = "Run create_agent.py first."
+    environment_id = read_id(".environment_id", hint)
+    memory_store_id = read_id(".memory_store_id", hint)
 
     # Create the curator agent once; reuse it on later runs
     curator_path = Path(".curator_agent_id")
@@ -82,7 +75,9 @@ def main() -> None:
     # The curator gets its own session with the SAME memory store attached —
     # sessions require an environment, and the store must be a session
     # resource or the curator has nothing to curate.
-    session = client.beta.sessions.create(
+    session = create_session_or_explain(
+        client,
+        [".curator_agent_id", ".environment_id", ".memory_store_id"],
         agent=curator_id,
         environment_id=environment_id,
         title="Memory curation pass",
@@ -100,36 +95,36 @@ def main() -> None:
     )
 
     print("Curator working...\n")
-    text_parts: list[str] = []
-    with client.beta.sessions.events.stream(session.id) as stream:
-        client.beta.sessions.events.send(
-            session.id,
-            events=[
-                {
-                    "type": "user.message",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": (
-                                "Run a curation pass on the memory store "
-                                "mounted at /mnt/memory/. Follow your standard "
-                                "process. Report back when done."
-                            ),
-                        }
-                    ],
-                }
-            ],
-        )
-        for event in stream:
-            if event.type == "agent.message":
-                for block in event.content:
-                    if getattr(block, "type", None) == "text":
-                        text_parts.append(block.text)
-            elif event.type == "agent.tool_use":
-                name = getattr(event, "name", "?")
-                print(f"  [{name}]", flush=True)
-            elif event.type == "session.status_idle":
-                break
+    text_parts: list = []
+
+    def on_event(event):
+        if event.type == "agent.message":
+            for block in event.content:
+                if getattr(block, "type", None) == "text":
+                    text_parts.append(block.text)
+        elif event.type == "agent.tool_use":
+            print(f"  [{getattr(event, 'name', '?')}]", flush=True)
+
+    drive_session(
+        client,
+        session,
+        kickoff_events=[
+            {
+                "type": "user.message",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "Run a curation pass on the memory store "
+                            "mounted at /mnt/memory/. Follow your standard "
+                            "process. Report back when done."
+                        ),
+                    }
+                ],
+            }
+        ],
+        on_event=on_event,
+    )
 
     print("\n=== CURATOR REPORT ===")
     print("".join(text_parts) or "(no text returned — check the session in the Console)")
