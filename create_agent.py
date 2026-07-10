@@ -64,44 +64,65 @@ def main() -> None:
 
     client = Anthropic()
 
-    # 1. Agent
-    agent = client.beta.agents.create(
-        name="Institutional Memory Agent",
-        model="claude-sonnet-4-6",
-        system=SYSTEM_PROMPT,
-        tools=[{"type": "agent_toolset_20260401"}],
-        metadata={"hackathon": "partner-basecamp-2026", "track": "memory-agent"},
-    )
-    Path(".agent_id").write_text(agent.id)
-    print(f"Agent created:        {agent.id}")
+    # Re-running this script must not duplicate resources: agents and memory
+    # stores are reused via their saved ID files, and environments are looked
+    # up by name (environment names are unique per workspace — a second bare
+    # create returns 409, which bites on shared team workspaces).
 
-    # 2. Environment (the cloud container)
-    environment = client.beta.environments.create(
-        name="memory-agent-env",
-        config={
-            "type": "cloud",
-            "networking": {"type": "unrestricted"},
-        },
+    # 1. Agent
+    if Path(".agent_id").exists():
+        agent_id = Path(".agent_id").read_text().strip()
+        print(f"Reusing agent:        {agent_id}")
+    else:
+        agent = client.beta.agents.create(
+            name="Institutional Memory Agent",
+            model="claude-sonnet-4-6",
+            system=SYSTEM_PROMPT,
+            tools=[{"type": "agent_toolset_20260401"}],
+            metadata={"hackathon": "partner-basecamp-2026", "track": "memory-agent"},
+        )
+        Path(".agent_id").write_text(agent.id)
+        print(f"Agent created:        {agent.id}")
+
+    # 2. Environment (the cloud container) — get-or-create by name
+    env_name = "memory-agent-env"
+    environment = next(
+        (e for e in client.beta.environments.list() if e.name == env_name), None
     )
+    if environment is not None:
+        print(f"Reusing environment:  {environment.id}")
+    else:
+        environment = client.beta.environments.create(
+            name=env_name,
+            config={
+                "type": "cloud",
+                "networking": {"type": "unrestricted"},
+            },
+        )
+        print(f"Environment created:  {environment.id}")
     Path(".environment_id").write_text(environment.id)
-    print(f"Environment created:  {environment.id}")
 
     # 3. Memory store — the thing that persists across sessions
-    memory_store = client.beta.memory_stores.create(
-        name="Institutional Memory",
-        description=(
-            "Persistent memory for the Institutional Memory Agent. Contains "
-            "policies, key people, customer facts, and recurring Q&A learned "
-            "across sessions. Used as authoritative wiki — newer entries "
-            "supersede older ones on the same topic."
-        ),
-    )
-    Path(".memory_store_id").write_text(memory_store.id)
-    print(f"Memory store created: {memory_store.id}")
+    if Path(".memory_store_id").exists():
+        store_id = Path(".memory_store_id").read_text().strip()
+        print(f"Reusing memory store: {store_id}")
+    else:
+        memory_store = client.beta.memory_stores.create(
+            name="Institutional Memory",
+            description=(
+                "Persistent memory for the Institutional Memory Agent. Contains "
+                "policies, key people, customer facts, and recurring Q&A learned "
+                "across sessions. Used as authoritative wiki — newer entries "
+                "supersede older ones on the same topic."
+            ),
+        )
+        Path(".memory_store_id").write_text(memory_store.id)
+        print(f"Memory store created: {memory_store.id}")
+    store_id = Path(".memory_store_id").read_text().strip()
 
     print("\nSetup complete.")
-    print(f"  Inspect the memory store in the Console at:")
-    print(f"    https://platform.claude.com/memory-stores/{memory_store.id}")
+    print(f"  Inspect the memory store in the Console (Memory Stores):")
+    print(f"    store id {store_id}")
     print(f"  Or programmatically with:  python inspect_memory.py")
     print(f"\nNext:  python run_session_1.py")
 

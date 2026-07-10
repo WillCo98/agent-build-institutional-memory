@@ -32,19 +32,20 @@ def main() -> None:
 
     print(f"Memory store: {store_id}\n" + "=" * 60)
 
-    page = client.beta.memory_stores.memories.list(
-        store_id,
-        path_prefix="/",
-        order_by="path",
+    # Iterating the list result auto-paginates (page.data would be page 1 only)
+    items = list(
+        client.beta.memory_stores.memories.list(
+            store_id,
+            path_prefix="/",
+            order_by="path",
+        )
     )
-
-    items = list(page.data)
     if not items:
         print("(memory store is empty — has run_session_1.py been run?)")
         return
 
     for item in items:
-        # `item.type` is "memory" for files (or "directory" for nested dirs)
+        # `item.type` is "memory" for files, "memory_prefix" for directory nodes
         if item.type != "memory":
             print(f"\n[dir] {item.path}")
             continue
