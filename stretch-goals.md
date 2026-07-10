@@ -52,14 +52,14 @@ Modify the agent to scope its memory by a `customer_id` metadata key. Run two se
 **Why this lands:** First question every multi-tenant SaaS will ask: "how do you keep customers' data separated?"
 
 ### S6. Memory + Routines combination
-Wrap session 1 in a Routine that fires daily, ingesting new docs from a folder. Now memory accumulates passively.
+Wrap session 1 in a **Routine** — or its API-native form, a **scheduled deployment** (`POST /v1/deployments`, cron + `initial_events`) — that fires daily, ingesting new docs from a folder. Now memory accumulates passively.
 
 **Why this lands:** Now you've got a fully autonomous learning agent.
 
 ### S7. Long-context with compaction
 Push the agent to 20+ turns in a single session. Use [context editing / compaction](https://platform.claude.com/docs/en/build-with-claude/compaction) to keep it sharp over long sessions, then commit the compacted summary to memory.
 
-**Why this lands:** Demonstrates the difference between *in-session memory* (the context window) and *across-session memory* (the Memory tool) — a distinction most teams haven't internalised yet.
+**Why this lands:** Demonstrates the difference between *in-session memory* (the context window) and *across-session memory* ([memory stores](https://platform.claude.com/docs/en/managed-agents/memory)) — a distinction most teams haven't internalised yet.
 
 ---
 
