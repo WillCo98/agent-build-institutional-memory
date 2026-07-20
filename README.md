@@ -1,4 +1,4 @@
-# Track 2 — Institutional Memory Agent
+# Track 1 — Institutional Memory Agent
 
 Build an agent that runs two sessions on the same domain with a [memory store](https://platform.claude.com/docs/en/managed-agents/memory) persisting between them. Memory here doesn't mean "a vector database for documents" — it means the agent decides what to remember, what to update, and what to forget when new information contradicts what it learned. New docs in session 2 contradict session 1; a good agent reconciles them and answers visibly sharper the second time. [Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview) runs the sessions in the cloud — nothing to spin up locally.
 
@@ -13,6 +13,8 @@ python check_setup.py
 ```
 
 `check_setup.py` installs the SDK if needed, sets up your key in a gitignored `.env`, pings the API, confirms memory-store access, and validates any saved state. Green means the plumbing is done and everything after is the exercise. If it isn't green, [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md) has the fix; on a new or locked-down laptop, [`SETUP.md`](./SETUP.md) has the one-page venv-and-proxy setup.
+
+> **Entitlement:** this track runs on the **Managed Agents** beta (agents, cloud Environments, and Memory Stores). Your workspace must have that beta enabled — the SDK's `.beta` namespace sends the `managed-agents-2026-04-01` header automatically, but the API will reject the calls if the workspace isn't granted access. `check_setup.py`'s memory-store check surfaces this; if it fails on access rather than the key, ask whoever owns the workspace to enable the Managed Agents beta.
 
 ## How to run
 

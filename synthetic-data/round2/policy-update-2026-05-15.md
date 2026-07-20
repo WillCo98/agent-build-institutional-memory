@@ -13,7 +13,7 @@ Following the April incident review (PROD-INC-04-2026), we are tightening produc
 
 ## New process for read-only access
 
-1. Engineer completes the **Prod Access Foundations** course in the BTS Learning portal (90 minutes, self-paced).
+1. Engineer completes the **Prod Access Foundations** course in the Northwind Learning portal (90 minutes, self-paced).
 2. After passing the assessment, engineer requests access through the IAM platform (link in the learning portal completion email).
 3. Access is granted **just-in-time**, scoped to a 4-hour window per request. Engineers re-request as needed.
 4. Engineer's manager is notified of each request. No manager sign-off required for individual requests — only for the initial certification.

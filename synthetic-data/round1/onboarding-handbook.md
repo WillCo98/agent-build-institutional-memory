@@ -1,15 +1,15 @@
-# BTS-Synthetic Engineering Onboarding Handbook
+# Northwind Engineering Onboarding Handbook
 
 *Version 4.2 — Effective January 2026*
 
-Welcome to BTS-Synthetic Engineering. This handbook covers everything you need in your first two weeks.
+Welcome to Northwind Engineering. This handbook covers everything you need in your first two weeks.
 
 ## Day 1 — Equipment and accounts
 
 You'll receive a laptop, a YubiKey, and credentials for the following:
-- Email (your firstname.lastname@bts-synthetic.example)
+- Email (your firstname.lastname@northwind.example)
 - Slack
-- GitHub (organization: `bts-synthetic`)
+- GitHub (organization: `northwind`)
 - Read-only access to staging environments
 
 You will **not** receive prod access on day 1. See "Getting prod access" below.
@@ -24,7 +24,7 @@ Your manager will pair you with a buddy for your first two weeks. Spend time wit
 
 ## Getting prod access
 
-Prod access at BTS-Synthetic is split into three levels:
+Prod access at Northwind is split into three levels:
 
 1. **Read-only** — for debugging. Available after 2 weeks of tenure and one completed pairing session with an SRE.
 2. **Read-write** — for routine ops. Available after 6 weeks and SRE sign-off.

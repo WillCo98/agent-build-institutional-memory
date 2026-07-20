@@ -1,4 +1,4 @@
-# Track 2 — Institutional Memory Agent (build brief)
+# Track 1 — Institutional Memory Agent (build brief)
 
 **Concept landed:** Memory & context engineering
 **Tech:** [Claude Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview) + [memory stores](https://platform.claude.com/docs/en/managed-agents/memory)

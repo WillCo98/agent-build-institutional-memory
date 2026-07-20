@@ -2,7 +2,7 @@
 
 *Effective January 2026. Owned by Maya Singh (Head of Security).*
 
-This is the authoritative source for how production access is granted at BTS-Synthetic.
+This is the authoritative source for how production access is granted at Northwind.
 
 ## Three levels
 
