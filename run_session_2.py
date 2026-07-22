@@ -3,7 +3,7 @@ Session 2 — After memory + new context.
 
 Same agent, same memory store, fresh session. Round2 docs contradict round1.
 The agent should:
-- Read memory first (`/mnt/memory/`)
+- Read memory first (its mount directory under `/mnt/memory/`)
 - Notice the contradictions in the new docs
 - UPDATE memory rather than appending
 - Lead its answer with what changed and why
@@ -14,7 +14,7 @@ Usage:
 
 from pathlib import Path
 
-from _common import create_session_or_explain, drive_session, get_client, read_id
+from _common import create_session_or_explain, drive_session, get_client, memory_mount_path, read_id
 
 # Match session 1
 TEST_QUESTION = (
@@ -70,11 +70,13 @@ def main() -> None:
     # came from THIS run or a stale earlier one (e.g. if the session errors below).
     Path(".last_session_id").write_text(session.id)
 
+    memory_dir = memory_mount_path(session)  # e.g. /mnt/memory/institutional-memory
+
     user_message = (
         "I'm including some updated and new documents below. Some of them "
         "contradict things you learned in our previous session.\n\n"
         "Please:\n"
-        "1. First, check your memory store at /mnt/memory/ to see what you "
+        f"1. First, check your memory store at {memory_dir}/ to see what you "
         "already know.\n"
         "2. Read the new documents below.\n"
         "3. Reconcile conflicts — UPDATE memory entries to reflect the "
@@ -122,7 +124,8 @@ def main() -> None:
     OUTPUT_DIR.mkdir(exist_ok=True)
     out = OUTPUT_DIR / "session2.txt"
     out.write_text(
-        f"=== SESSION 2 ===\nQuestion: {TEST_QUESTION}\n\n--- ANSWER ---\n{final_text}\n"
+        f"=== SESSION 2 ===\nQuestion: {TEST_QUESTION}\n\n--- ANSWER ---\n{final_text}\n",
+        encoding="utf-8",
     )
     print(f"\nSaved to {out}")
     print(f"\nDiff outputs/session1.txt and outputs/session2.txt — the demo lives there.")

@@ -9,7 +9,7 @@
 
 Memory is the concept enterprise clients ask about most and understand least. Most people think it means "a vector database for documents." It doesn't — it means **the agent decides what to remember, what to forget, and what to update when it learns something new.**
 
-You'll build an agent that runs two sessions on the same domain. Between them a **memory store** persists — mounted at `/mnt/memory/` inside each session's container, read and written by the agent with its ordinary file tools. New information in session 2 contradicts session 1. The agent should reconcile, update its memory, and answer better than it did the first time.
+You'll build an agent that runs two sessions on the same domain. Between them a **memory store** persists — mounted at `/mnt/memory/institutional-memory/` inside each session's container (a subdirectory of `/mnt/memory/` named after the store), read and written by the agent with its ordinary file tools. New information in session 2 contradicts session 1. The agent should reconcile, update its memory, and answer better than it did the first time.
 
 That's the demo: same question, two sessions, visibly sharper answer. No infrastructure to spin up — Managed Agents runs the sessions in the cloud.
 

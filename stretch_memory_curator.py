@@ -24,14 +24,17 @@ Usage:
 
 from pathlib import Path
 
-from _common import create_session_or_explain, drive_session, get_client, read_id
+from _common import create_session_or_explain, drive_session, get_client, memory_mount_path, read_id
 
 
 CURATOR_SYSTEM_PROMPT = """\
 You are the Memory Curator. Your only job is memory hygiene.
 
-Another agent's memory store is mounted at /mnt/memory/ in your session
-(read/write). On each run:
+Another agent's memory store is mounted read/write in your session as a
+directory under /mnt/memory/ — the exact directory is named in your
+memory-store mount note and in the kickoff message. Work only inside it;
+files written elsewhere under /mnt/memory/ are not saved to the store.
+On each run:
 
 1. List every entry in the store.
 2. Merge any duplicates — keep the most recent version, fold the others in.
@@ -87,12 +90,14 @@ def main() -> None:
                 "memory_store_id": memory_store_id,
                 "access": "read_write",
                 "instructions": (
-                    "This is the memory store you curate. Mounted at "
-                    "/mnt/memory/. Clean it per your standard process."
+                    "This is the memory store you curate. Clean it per "
+                    "your standard process."
                 ),
             }
         ],
     )
+
+    memory_dir = memory_mount_path(session)  # e.g. /mnt/memory/institutional-memory
 
     print("Curator working...\n")
     text_parts: list = []
@@ -116,7 +121,7 @@ def main() -> None:
                         "type": "text",
                         "text": (
                             "Run a curation pass on the memory store "
-                            "mounted at /mnt/memory/. Follow your standard "
+                            f"mounted at {memory_dir}/. Follow your standard "
                             "process. Report back when done."
                         ),
                     }

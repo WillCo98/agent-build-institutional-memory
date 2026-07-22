@@ -8,10 +8,21 @@ wrong, you get a next step instead of a traceback.
 
 import os
 import pathlib
+import sys
 import time
 
 import anthropic
 from anthropic import Anthropic
+
+# Windows consoles default to cp1252; streamed agent output routinely contains
+# characters outside it (→, ✓, box-drawing), which crashes the run mid-stream on
+# a plain print(). Force UTF-8 for every script that imports this module. (File
+# writes pass encoding="utf-8" explicitly — this only covers stdout/stderr.)
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
 
 
 _ENV_TEMPLATE = (
@@ -82,6 +93,25 @@ def read_id(path, hint):
     if not p.exists():
         raise SystemExit(f"Missing {path}. {hint}")
     return p.read_text().strip()
+
+
+def memory_mount_path(session):
+    """Exact directory where the session's memory store is mounted.
+
+    The store does NOT mount at /mnt/memory/ itself — it mounts at
+    /mnt/memory/<slug-of-store-name>/ (e.g. "Institutional Memory" ->
+    /mnt/memory/institutional-memory). The API returns the real path on the
+    session's memory_store resource; read it from there instead of guessing.
+    Files written anywhere else under /mnt/memory/ are container-local scratch
+    and silently vanish when the session ends.
+    """
+    for r in getattr(session, "resources", []) or []:
+        if getattr(r, "type", None) == "memory_store" and getattr(r, "mount_path", None):
+            return r.mount_path.rstrip("/")
+    raise SystemExit(
+        f"Session {session.id} came back without a memory-store mount_path — "
+        "was the store attached in resources=[...]? Run `python check_setup.py`."
+    )
 
 
 def console_url(session_id):

@@ -4,9 +4,11 @@ Provision the three things this track needs:
   2. A cloud Environment (the container the agent runs in)
   3. A Memory Store that survives across sessions
 
-The memory store mounts at /mnt/memory/ inside the session container. The agent
-reads and writes it with normal file tools. It persists across sessions —
-that's the whole point of this track.
+The memory store mounts at /mnt/memory/<store-name-slug>/ inside the session
+container — /mnt/memory/institutional-memory/ for this store's name. The run
+scripts read the exact path from the session's resources (mount_path) and
+inject it into the kickoff message. The agent reads and writes it with normal
+file tools. It persists across sessions — that's the whole point of this track.
 
 IDs are saved to .agent_id, .environment_id, .memory_store_id so the
 run_session_* scripts can pick them up.
@@ -33,11 +35,14 @@ expected to get sharper over time.
 
 # Memory protocol (mandatory)
 
-You have a persistent memory store mounted at `/mnt/memory/`. It survives
-across sessions. Treat it like the team wiki.
+You have a persistent memory store mounted as a directory under `/mnt/memory/`
+— the exact mount directory is named in your memory-store mount note and in
+the user's message. It survives across sessions. Treat it like the team wiki.
+Only files inside that mount directory are saved to the store; anything
+written elsewhere under `/mnt/memory/` is silently lost when the session ends.
 
-1. **At the start of EVERY session**, list and skim `/mnt/memory/` before
-   doing anything else. Use your bash and file tools.
+1. **At the start of EVERY session**, list and skim your memory mount
+   directory before doing anything else. Use your bash and file tools.
 2. Read any files that look relevant to the current question.
 3. As you work, **record what you learn for future sessions**:
    - Policies (especially anything with a date or version)
@@ -67,25 +72,33 @@ def main() -> None:
     # up by name (environment names are unique per workspace — a second bare
     # create returns 409, which bites on shared team workspaces).
 
-    # 1. Agent
+    # 1. Agent — create it, or UPDATE it in place on reuse. The reuse path must
+    #    re-push the config: a retrieve-only branch silently ignores an edited
+    #    SYSTEM_PROMPT/model (the whole point of this exercise is editing the
+    #    prompt, so "edit, re-run create_agent.py" has to actually apply). Same
+    #    pattern the swarm's create_coordinator.py already uses.
+    agent_config = dict(
+        model="claude-sonnet-5",
+        system=SYSTEM_PROMPT,
+        tools=[{"type": "agent_toolset_20260401"}],
+    )
     if Path(".agent_id").exists():
         agent_id = Path(".agent_id").read_text().strip()
         try:
-            client.beta.agents.retrieve(agent_id)
-            print(f"Reusing agent:        {agent_id}")
+            current = client.beta.agents.retrieve(agent_id)
         except anthropic.APIStatusError:
             raise SystemExit(
                 f"Saved .agent_id ({agent_id[:18]}…) is unreachable with this key "
                 "(deleted, or another workspace). Delete .agent_id and re-run — "
                 "or run `python check_setup.py` to validate all saved state."
             )
+        client.beta.agents.update(agent_id, version=current.version, **agent_config)
+        print(f"Agent updated (re-pushed prompt/model): {agent_id}")
     else:
         agent = client.beta.agents.create(
             name="Institutional Memory Agent",
-            model="claude-sonnet-5",
-            system=SYSTEM_PROMPT,
-            tools=[{"type": "agent_toolset_20260401"}],
             metadata={"hackathon": "partner-basecamp-2026", "track": "memory-agent"},
+            **agent_config,
         )
         Path(".agent_id").write_text(agent.id)
         print(f"Agent created:        {agent.id}")

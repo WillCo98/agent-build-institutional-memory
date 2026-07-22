@@ -119,7 +119,7 @@ def load_criteria():
     if not ACCEPTANCE.exists():
         return None
     crits = []
-    for raw in ACCEPTANCE.read_text().splitlines():
+    for raw in ACCEPTANCE.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
@@ -190,7 +190,7 @@ def main() -> None:
             f"✗ No {SESSION2}\n"
             "  Run `python run_session_2.py` first — there's no answer to check yet."
         )
-    answer = SESSION2.read_text()
+    answer = SESSION2.read_text(encoding="utf-8")
     answer_lc = answer.lower()
     if len(answer.strip()) < 120:
         raise SystemExit(
@@ -204,6 +204,26 @@ def main() -> None:
     print("  ✓ Exists and has content")
     if stale:
         print(f"  {stale}")
+
+    # FLOOR — memory must have actually PERSISTED, not just produced an answer.
+    # The session-2 answer is derivable from the in-context round-2 docs, so
+    # grading it alone can't tell "memory worked" from "memory silently failed."
+    # A memory exercise with an empty store after session 2 has FAILED (classic
+    # cause: a mount-path mismatch — the store mounts at /mnt/memory/<store-name>/,
+    # not /mnt/memory/). Only gates when the store is reachable.
+    store_items = read_memory_items()
+    if store_items is not None and len(store_items) == 0:
+        raise SystemExit(
+            "✗ The memory store is EMPTY after session 2 — nothing persisted.\n"
+            "  Cross-session memory silently failed (the agent wrote outside the real\n"
+            "  mount, or never wrote). Check that the mount path in create_agent.py's\n"
+            "  system prompt and the resource `instructions` in run_session_*.py match\n"
+            "  where the store actually mounts, then re-run create_agent.py + both sessions."
+        )
+    if store_items:
+        print(f"  ✓ Memory store persisted {len(store_items)} file(s)")
+    elif store_items is None:
+        print("  · (store not reachable from here — skipping the persistence check)")
     print()
 
     gate_failures = 0

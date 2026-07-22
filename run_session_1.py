@@ -2,7 +2,8 @@
 Session 1 — Baseline.
 
 Starts a Managed Agents session with the memory store ATTACHED so the agent
-can read and write /mnt/memory/. Inlines the round1 docs in the user message.
+can read and write its mount under /mnt/memory/ (exact path read from the
+session's resources). Inlines the round1 docs in the user message.
 
 After this session, inspect the memory store to see what the agent saved:
     python inspect_memory.py
@@ -14,7 +15,7 @@ Usage:
 
 from pathlib import Path
 
-from _common import create_session_or_explain, drive_session, get_client, read_id
+from _common import create_session_or_explain, drive_session, get_client, memory_mount_path, read_id
 
 TEST_QUESTION = (
     "I just joined the company and I need read-only prod access to debug an "
@@ -58,21 +59,23 @@ def main() -> None:
                 "memory_store_id": memory_store_id,
                 "access": "read_write",
                 "instructions": (
-                    "This is your persistent institutional memory. Mounted at "
-                    "/mnt/memory/. Check it before starting. Record what you "
-                    "learn for future sessions."
+                    "This is your persistent institutional memory. Check it "
+                    "before starting. Record what you learn for future "
+                    "sessions."
                 ),
             }
         ],
     )
 
+    memory_dir = memory_mount_path(session)  # e.g. /mnt/memory/institutional-memory
+
     user_message = (
         "I'm including our onboarding and policy documents below. Please:\n"
-        "1. First, check your memory store at /mnt/memory/ to see what you've "
+        f"1. First, check your memory store at {memory_dir}/ to see what you've "
         "learned in previous sessions.\n"
         "2. Then read the documents below.\n"
         "3. Then answer the question.\n"
-        "4. Before you finish, save anything worth remembering to /mnt/memory/.\n\n"
+        f"4. Before you finish, save anything worth remembering to {memory_dir}/.\n\n"
         f"{context}\n\n"
         "==================================================\n"
         f"QUESTION: {TEST_QUESTION}"
@@ -114,7 +117,8 @@ def main() -> None:
     OUTPUT_DIR.mkdir(exist_ok=True)
     out = OUTPUT_DIR / "session1.txt"
     out.write_text(
-        f"=== SESSION 1 ===\nQuestion: {TEST_QUESTION}\n\n--- ANSWER ---\n{final_text}\n"
+        f"=== SESSION 1 ===\nQuestion: {TEST_QUESTION}\n\n--- ANSWER ---\n{final_text}\n",
+        encoding="utf-8",
     )
     print(f"\nSaved to {out}")
     print(f"\nInspect what the agent remembered:  python inspect_memory.py")
