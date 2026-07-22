@@ -124,6 +124,7 @@ def main() -> None:
     print(f"\nSaved to {out}")
     print(f"\nDiff outputs/session1.txt and outputs/session2.txt — the demo lives there.")
     print(f"Inspect updated memory:  python inspect_memory.py")
+    print(f"Grade the arc (required):  python check_memory.py")
 
 
 if __name__ == "__main__":

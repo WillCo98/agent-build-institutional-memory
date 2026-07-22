@@ -1,0 +1,249 @@
+"""
+Verify the memory arc — run this AFTER run_session_2.py.
+
+The habit this enforces: "session 2 felt sharper" is not the same as "memory did
+its job." Before you demo, you check the session-2 answer (and the store) against
+acceptance criteria. This is that check — deliberately dumb: no grading model, just
+a fast local read of outputs/session2.txt plus the memory store the agent built.
+
+It is built NOT to box you in. Three layers, loosest to tightest:
+
+  • THE FLOOR (always gates, scenario-agnostic): session 2 exists and has real
+    content. True for the wired onboarding scenario or any domain you swap in. A
+    custom build can never hard-fail just for being custom.
+
+  • YOUR CRITERIA (gates, only if you write them): drop an `acceptance.txt` next to
+    this script — one criterion per line, checked against the session-2 answer — and
+    the check grades YOUR scenario against YOUR bar. Format at the bottom of this file.
+
+  • THE WIRED GRADE (advisory, only for the shipped onboarding scenario): if round2
+    still carries the shipped contradiction, you also get the "Done when" bar graded
+    for free — the retired workflow is gone from the answer, the current policy is
+    cited, and the store looks updated-not-appended. Keyword heuristics on prose;
+    a ✗ means "go look," not "you failed." They never gate, and they go quiet the
+    moment you adapt the scenario.
+
+Reading the store needs your key + .memory_store_id (same as inspect_memory.py). If
+that isn't reachable, the answer checks still run; the store hygiene note is skipped.
+
+Usage:
+    python check_memory.py
+"""
+
+import re
+from pathlib import Path
+
+SESSION2 = Path("outputs/session2.txt")
+ACCEPTANCE = Path("acceptance.txt")
+WIRED_ROUND2 = Path("synthetic-data/round2")
+
+# --- wired-scenario reference (only used when the shipped contradiction is intact) ---
+RETIRED_MARKERS = [
+    "#sre-access-requests", "sre-access-requests", "sre access request",
+    "sre pairing", "pairing session",
+]
+NEW_POLICY_MARKERS = [
+    "self-serve", "self serve", "self-service", "certification", "certif",
+    "just-in-time", "just in time", "jit", "2026-05-15", "may 2026", "may 15",
+]
+CHANGE_MARKERS = [
+    "changed", "no longer", "previously", "used to", "update", "since",
+    "as of", "new policy", "replaced", "superseded",
+]
+DEPRECATION_MARKERS = [
+    "retired", "deprecated", "no longer", "old ", "former", "superseded",
+    "replaced", "historical", "until 2026-05", "before ", "previously",
+]
+
+
+def _has(text_lc, *needles):
+    return any(n.lower() in text_lc for n in needles)
+
+
+def _found(text_lc, needles):
+    return [n for n in needles if n.lower() in text_lc]
+
+
+def load_criteria():
+    """Parse acceptance.txt, or None if not written. One criterion per line;
+    blank/#-comment lines ignored.
+      plain text  -> the answer MUST contain it (case-insensitive)
+      /regex/     -> the answer MUST match this regex (case-insensitive)
+      leading "!" -> negate: e.g. "!acquire" or "!/re/" means MUST NOT contain / match
+    """
+    if not ACCEPTANCE.exists():
+        return None
+    crits = []
+    for raw in ACCEPTANCE.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        negate = line.startswith("!")
+        if negate:
+            line = line[1:].strip()
+        is_regex = len(line) >= 2 and line.startswith("/") and line.endswith("/")
+        pattern = line[1:-1] if is_regex else line
+        crits.append({"raw": raw.strip(), "negate": negate, "regex": is_regex, "pattern": pattern})
+    return crits
+
+
+def check_criterion(text, text_lc, c):
+    if c["regex"]:
+        try:
+            found = re.search(c["pattern"], text, re.IGNORECASE) is not None
+        except re.error as e:
+            return None, f"bad regex: {e}"
+    else:
+        found = c["pattern"].lower() in text_lc
+    return ((not found) if c["negate"] else found), None
+
+
+def is_wired_scenario() -> bool:
+    """True only if round2 still carries the shipped contradiction — i.e. you
+    haven't swapped synthetic-data/ for your own domain."""
+    try:
+        if not WIRED_ROUND2.is_dir():
+            return False
+        blob = " ".join(p.read_text(errors="ignore").lower()
+                        for p in WIRED_ROUND2.glob("*.md"))
+        return "2026-05-15" in blob or "#sre-access-requests" in blob
+    except OSError:
+        return False
+
+
+def read_memory_items():
+    """[(path, content)] from the store, or None if unreachable."""
+    try:
+        from _common import get_client
+    except Exception:
+        return None
+    store_path = Path(".memory_store_id")
+    if not store_path.exists():
+        return None
+    store_id = store_path.read_text().strip()
+    try:
+        client = get_client()
+        items = list(client.beta.memory_stores.memories.list(store_id, path_prefix="/"))
+    except Exception:
+        return None
+    out = []
+    for item in items:
+        if getattr(item, "type", None) != "memory":
+            continue
+        try:
+            r = client.beta.memory_stores.memories.retrieve(item.id, memory_store_id=store_id)
+            out.append((item.path, r.content or ""))
+        except Exception:
+            out.append((item.path, ""))
+    return out
+
+
+def main() -> None:
+    # ── THE FLOOR (scenario-agnostic, gates) ─────────────────────────────────
+    if not SESSION2.exists():
+        raise SystemExit(
+            f"✗ No {SESSION2}\n"
+            "  Run `python run_session_2.py` first — there's no answer to check yet."
+        )
+    answer = SESSION2.read_text()
+    answer_lc = answer.lower()
+    if len(answer.strip()) < 120:
+        raise SystemExit(
+            f"✗ {SESSION2} exists but is nearly empty ({len(answer.strip())} chars).\n"
+            "  The session likely errored before answering — open the Console trace."
+        )
+
+    print(f"Checking {SESSION2}  ({len(answer.strip())} chars)\n")
+    print("FLOOR — is there a real session-2 answer?")
+    print("  ✓ Exists and has content")
+    print()
+
+    gate_failures = 0
+
+    # ── YOUR CRITERIA (gates, only if acceptance.txt exists) ─────────────────
+    criteria = load_criteria()
+    if criteria is not None:
+        print(f"YOUR CRITERIA — from acceptance.txt ({len(criteria)} defined):")
+        if not criteria:
+            print("  (acceptance.txt is present but empty — add one criterion per line)")
+        for c in criteria:
+            ok, err = check_criterion(answer, answer_lc, c)
+            if err:
+                print(f"  ⚠ {c['raw']}   ({err})")
+                continue
+            kind = "must NOT contain" if c["negate"] else "must contain"
+            print(f"  {'✓' if ok else '✗'} [{kind}] {c['raw']}")
+            if not ok:
+                gate_failures += 1
+        print()
+
+    # ── THE WIRED GRADE (advisory, only for the shipped onboarding scenario) ──
+    if is_wired_scenario():
+        print("WIRED GRADE — the onboarding 'Done when' bar (advisory, no gate):")
+        retired = _found(answer_lc, RETIRED_MARKERS)
+        if retired:
+            print(f"  ✗ Still routes to the RETIRED workflow: {', '.join(retired)} — "
+                  "memory didn't override the stale fact.")
+        else:
+            print("  ✓ Does NOT send the new hire down the retired path")
+        new_hits = _found(answer_lc, NEW_POLICY_MARKERS)
+        if new_hits:
+            print(f"  ✓ Cites the current (May) policy: {', '.join(sorted(set(new_hits)))}")
+        else:
+            print("  ✗ Doesn't cite the current policy (self-serve certification + "
+                  "just-in-time IAM access, effective 2026-05-15).")
+        if _has(answer_lc, *CHANGE_MARKERS):
+            print("  ✓ Leads with / signals what changed")
+        else:
+            print("  ✗ Doesn't frame the answer around what changed since last time.")
+
+        items = read_memory_items()
+        if items is None:
+            print("  · store hygiene: skipped (couldn't read the store — run check_setup.py)")
+        elif not items:
+            print("  · store hygiene: the store is empty — has run_session_1.py run?")
+        else:
+            stale, access_entries = [], 0
+            for path, content in items:
+                c_lc = content.lower()
+                if _has(c_lc, *RETIRED_MARKERS) and not _has(c_lc, *DEPRECATION_MARKERS):
+                    stale.append(path)
+                if _has(c_lc, "prod access", "production access", "read-only prod",
+                        "read only prod", "iam", "prod-access"):
+                    access_entries += 1
+            if stale:
+                print(f"  ✗ store hygiene: retired workflow stored as current in "
+                      f"{', '.join(stale)} — that's an append, not an update.")
+            else:
+                print("  ✓ store hygiene: no retired workflow sitting in memory as current")
+            if access_entries >= 2:
+                print(f"  ⚠ store hygiene: {access_entries} prod-access entries — check "
+                      "inspect_memory.py that they were reconciled into one, not duplicated.")
+        print("  (Advisory only — the lever is the memory protocol in create_agent.py, "
+              "never the data.)")
+        print()
+    elif criteria is None:
+        print("ADAPTED SCENARIO — the wired onboarding checks don't apply to your build.")
+        print("  Define what a good session-2 answer looks like for YOUR domain:")
+        print("  create acceptance.txt next to this script, one criterion per line, e.g.:")
+        print("      # M&A diligence variant")
+        print("      /restatement|contradict/    # must flag the new liability")
+        print("      !acquire without conditions  # must NOT ignore the red flag")
+        print("  Then re-run — the check grades your build against your bar.")
+        print()
+
+    # ── VERDICT ──────────────────────────────────────────────────────────────
+    if gate_failures:
+        raise SystemExit(
+            f"✗ {gate_failures} of your acceptance criteria failed. The lever is the "
+            "memory protocol in create_agent.py's system prompt (check memory first, "
+            "update-don't-append, prefer the newer dated fact) — tighten it, re-run "
+            "create_agent.py, then both sessions. Never edit the data."
+        )
+    print("✓ PASSED — a real session-2 answer, and it meets the bar in play.")
+    if criteria is None and is_wired_scenario():
+        print("  (Read the advisory WIRED GRADE above — especially the retired-path line.)")
+
+
+if __name__ == "__main__":
+    main()
