@@ -2,7 +2,7 @@
 
 **Concept landed:** Memory & context engineering
 **Tech:** [Claude Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview) + [memory stores](https://platform.claude.com/docs/en/managed-agents/memory)
-**Build window:** ~40 minutes on the clock
+**Build window:** one focused build block — your facilitator sets the clock and may flex it in the room
 **Output:** An agent that visibly gets sharper across two sessions on the same domain.
 
 ## The shape you're building
@@ -13,7 +13,7 @@ You'll build an agent that runs two sessions on the same domain. Between them a 
 
 That's the demo: same question, two sessions, visibly sharper answer. No infrastructure to spin up — Managed Agents runs the sessions in the cloud.
 
-## Step 0 — prove your setup (2 min, before you touch anything)
+## Step 0 — prove your setup (before you touch anything)
 
 ```bash
 git clone https://github.com/victorsteeb/agent-build-institutional-memory.git
@@ -56,14 +56,16 @@ Run these in order. Every session script prints its **session ID and a Console t
 
 6. **Verify it.** `python check_memory.py` — the required check, and the habit: "session 2 felt sharper" is not the same as "memory did its job." No second model — a fast local read of the session-2 answer and the store. It gates on a scenario-agnostic **floor** (a real session-2 answer exists), and — while you're on the wired onboarding scenario — grades the "Done when" bar for free (the retired workflow is gone from the answer, the current policy is cited, the store looks **updated, not appended**) as advisory guidance. **Adapting the scenario? The check comes with you:** drop an `acceptance.txt` next to the script — one criterion per line (plain text, `/regex/`, or `!must-not`) — and it grades *your* domain against *your* bar. If it flags a problem, the lever is the memory protocol in `create_agent.py` — never the data.
 
-## The 40 minutes
+## The build, in phases
 
-- **0–5 — prove setup.** `python check_setup.py` until it's all green. Don't build on an unproven key.
-- **5–15 — baseline.** `create_agent.py`, then `run_session_1.py`. Read the session-1 answer out loud once, so you know what "before" sounds like.
-- **15–25 — inspect and iterate.** `inspect_memory.py`. Is the memory tight and useful, or is it dumping whole documents? If it's noisy, the lever is the **memory protocol in the system prompt** (`create_agent.py`) — tighten it, re-run `create_agent.py` (idempotent), re-run session 1. Don't touch the data.
-- **25–33 — the contradiction.** `run_session_2.py`. Confirm the answer *changed* and memory *updated* rather than appended.
-- **33–37 — grade it.** `python check_memory.py`. It checks the session-2 answer + the store in ~2 seconds. A ✗ on "still routes to the retired workflow" means memory didn't override the stale fact — tighten the protocol in `create_agent.py` and re-run. This is the step that catches a demo that *looks* right but isn't.
-- **37–40 — lock the demo.** Three terminals lined up, both answers ready to read.
+Work these in order — how long you spend on each is your facilitator's call.
+
+- **Prove setup.** `python check_setup.py` until it's all green. Don't build on an unproven key.
+- **Baseline.** `create_agent.py`, then `run_session_1.py`. Read the session-1 answer out loud once, so you know what "before" sounds like.
+- **Inspect and iterate.** `inspect_memory.py`. Is the memory tight and useful, or is it dumping whole documents? If it's noisy, the lever is the **memory protocol in the system prompt** (`create_agent.py`) — tighten it, re-run `create_agent.py` (idempotent), re-run session 1. Don't touch the data.
+- **The contradiction.** `run_session_2.py`. Confirm the answer *changed* and memory *updated* rather than appended.
+- **Grade it.** `python check_memory.py`. It checks the session-2 answer + the store in ~2 seconds. A ✗ on "still routes to the retired workflow" means memory didn't override the stale fact — tighten the protocol in `create_agent.py` and re-run. This is the step that catches a demo that *looks* right but isn't.
+- **Lock the demo.** Three terminals lined up, both answers ready to read.
 
 Cut scope before you cut the demo: one clean two-session arc beats three half-finished stretch goals.
 
@@ -73,7 +75,7 @@ Cut scope before you cut the demo: one clean two-session arc beats three half-fi
 
 **Great when:** the memory store is something you'd let a security team read — no dumped document text, dated entries, the re-org reflected in who owns what — and you can point at the exact `[memory: ...]` write in the session-1 stream where the agent decided a fact was worth keeping.
 
-## The two-minute demo
+## The demo
 
 Three terminals:
 - **Left:** `outputs/session1.txt` — the January answer (Slack ticket, SRE pairing).

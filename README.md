@@ -2,7 +2,7 @@
 
 Build an agent that runs two sessions on the same domain with a [memory store](https://platform.claude.com/docs/en/managed-agents/memory) persisting between them. Memory here doesn't mean "a vector database for documents" — it means the agent decides what to remember, what to update, and what to forget when new information contradicts what it learned. New docs in session 2 contradict session 1; a good agent reconciles them and answers visibly sharper the second time. [Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview) runs the sessions in the cloud — nothing to spin up locally.
 
-**Start with [`BRIEF.md`](./BRIEF.md)** — the scenario, the 40-minute plan, the demo, and how to re-point it at your own domain.
+**Start with [`BRIEF.md`](./BRIEF.md)** — the scenario, the build plan, the demo, and how to re-point it at your own domain.
 
 ## Step 0 — always
 
