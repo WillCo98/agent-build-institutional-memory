@@ -82,9 +82,9 @@ Three terminals:
 
 Read both answers out loud. Let the room hear the answer sharpen. Then name the one thing you'd harden before a client saw it — that's the practitioner version of the demo.
 
-## Take it home
+## What you walk out with
 
-The artifact you show your practice lead is the **diff plus the memory**:
+The artifact is the **diff plus the memory**:
 - `outputs/session1.txt` → `outputs/session2.txt` — same question, the answer visibly corrected itself across sessions.
 - `python inspect_memory.py --full` — the memory store the agent built and maintained on its own.
 
