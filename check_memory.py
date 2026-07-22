@@ -55,9 +55,54 @@ DEPRECATION_MARKERS = [
     "replaced", "historical", "until 2026-05", "before ", "previously",
 ]
 
+# Negation words that, near a retired marker, mean the answer is naming the old
+# path only to say it's GONE (correct) rather than recommending it (the failure).
+NEGATION_NEAR = [
+    "no ", "not ", "no longer", "eliminat", "remov", "retired", "was ", "were ",
+    "used to", "instead", "replac", "anymore", "don't", "do not", "deprecat",
+    "gone", "former", "previously", "old ", "superseded", "phased out",
+]
+
 
 def _has(text_lc, *needles):
     return any(n.lower() in text_lc for n in needles)
+
+
+def _staleness_warning(output_path):
+    """If .last_session_id (stamped when the session starts) is newer than the
+    output file, the most recent run didn't write this file — it probably errored
+    (e.g. a transient 'API overloaded') before saving. Grading a leftover file
+    from an earlier run would report a misleading PASS, so flag it."""
+    marker = Path(".last_session_id")
+    try:
+        if marker.exists() and output_path.exists():
+            if marker.stat().st_mtime > output_path.stat().st_mtime + 2:
+                return (f"⚠ STALE: {output_path} is older than your last session — "
+                        "the latest run may have errored before writing it. "
+                        "Re-run run_session_2.py to grade THIS session.")
+    except OSError:
+        pass
+    return None
+
+
+def _retired_recommended(text_lc):
+    """Retired markers that appear WITHOUT negation nearby — i.e. still being
+    recommended. A correct session-2 answer names the retired path only to say
+    it was removed ("no SRE pairing session anymore"); that negated context must
+    NOT be flagged as routing to it. Only an un-negated mention is the failure."""
+    hits = []
+    for m in RETIRED_MARKERS:
+        ml, start = m.lower(), 0
+        while True:
+            i = text_lc.find(ml, start)
+            if i < 0:
+                break
+            window = text_lc[max(0, i - 90):i + len(ml) + 40]
+            if not any(n in window for n in NEGATION_NEAR):
+                hits.append(m)
+                break
+            start = i + len(ml)
+    return hits
 
 
 def _found(text_lc, needles):
@@ -153,9 +198,12 @@ def main() -> None:
             "  The session likely errored before answering — open the Console trace."
         )
 
+    stale = _staleness_warning(SESSION2)
     print(f"Checking {SESSION2}  ({len(answer.strip())} chars)\n")
     print("FLOOR — is there a real session-2 answer?")
     print("  ✓ Exists and has content")
+    if stale:
+        print(f"  {stale}")
     print()
 
     gate_failures = 0
@@ -180,10 +228,14 @@ def main() -> None:
     # ── THE WIRED GRADE (advisory, only for the shipped onboarding scenario) ──
     if is_wired_scenario():
         print("WIRED GRADE — the onboarding 'Done when' bar (advisory, no gate):")
-        retired = _found(answer_lc, RETIRED_MARKERS)
-        if retired:
-            print(f"  ✗ Still routes to the RETIRED workflow: {', '.join(retired)} — "
+        recommended = _retired_recommended(answer_lc)
+        mentioned = _found(answer_lc, RETIRED_MARKERS)
+        if recommended:
+            print(f"  ✗ Still routes to the RETIRED workflow: {', '.join(recommended)} — "
                   "memory didn't override the stale fact.")
+        elif mentioned:
+            print(f"  ✓ Names the retired workflow only to say it's gone "
+                  f"({', '.join(mentioned)}) — that's the right move, not a miss.")
         else:
             print("  ✓ Does NOT send the new hire down the retired path")
         new_hits = _found(answer_lc, NEW_POLICY_MARKERS)
@@ -241,6 +293,8 @@ def main() -> None:
             "create_agent.py, then both sessions. Never edit the data."
         )
     print("✓ PASSED — a real session-2 answer, and it meets the bar in play.")
+    if stale:
+        print("  ⚠ ...but you graded a STALE file — re-run run_session_2.py to grade THIS session.")
     if criteria is None and is_wired_scenario():
         print("  (Read the advisory WIRED GRADE above — especially the retired-path line.)")
 

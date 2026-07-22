@@ -66,6 +66,9 @@ def main() -> None:
             }
         ],
     )
+    # Stamp the session start so check_memory.py can tell whether outputs/session2.txt
+    # came from THIS run or a stale earlier one (e.g. if the session errors below).
+    Path(".last_session_id").write_text(session.id)
 
     user_message = (
         "I'm including some updated and new documents below. Some of them "
