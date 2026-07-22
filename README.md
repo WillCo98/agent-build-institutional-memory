@@ -49,8 +49,9 @@ agent-build-institutional-memory/
 ├── create_agent.py             agent + environment + memory store (idempotent)
 ├── run_session_1.py            session 1 — round1 docs, baseline answer
 ├── run_session_2.py            session 2 — round2 contradictions, same question
+├── check_memory.py             required check — grades the session-2 answer + store (no API grader)
 ├── inspect_memory.py           list what the agent chose to remember
-├── stretch_memory_curator.py   stretch: curator sub-agent on the same store
+├── stretch_memory_curator.py   stretch: curator sub-agent on the same store (the LLM ceiling)
 ├── synthetic-data/
 │   ├── round1/                 initial context — handbook, directory, access policy
 │   └── round2/                 the updates that contradict round 1

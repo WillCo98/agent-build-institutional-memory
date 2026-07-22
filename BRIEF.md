@@ -54,19 +54,22 @@ Run these in order. Every session script prints its **session ID and a Console t
 
 5. **Compare.** `outputs/session1.txt` vs `outputs/session2.txt` — the demo lives in that diff.
 
+6. **Verify it.** `python check_memory.py` — the required check, and the habit: "session 2 felt sharper" is not the same as "memory did its job." No second model — a fast local read of the session-2 answer and the store. It gates on a scenario-agnostic **floor** (a real session-2 answer exists), and — while you're on the wired onboarding scenario — grades the "Done when" bar for free (the retired workflow is gone from the answer, the current policy is cited, the store looks **updated, not appended**) as advisory guidance. **Adapting the scenario? The check comes with you:** drop an `acceptance.txt` next to the script — one criterion per line (plain text, `/regex/`, or `!must-not`) — and it grades *your* domain against *your* bar. If it flags a problem, the lever is the memory protocol in `create_agent.py` — never the data.
+
 ## The 40 minutes
 
 - **0–5 — prove setup.** `python check_setup.py` until it's all green. Don't build on an unproven key.
 - **5–15 — baseline.** `create_agent.py`, then `run_session_1.py`. Read the session-1 answer out loud once, so you know what "before" sounds like.
 - **15–25 — inspect and iterate.** `inspect_memory.py`. Is the memory tight and useful, or is it dumping whole documents? If it's noisy, the lever is the **memory protocol in the system prompt** (`create_agent.py`) — tighten it, re-run `create_agent.py` (idempotent), re-run session 1. Don't touch the data.
-- **25–35 — the contradiction.** `run_session_2.py`. Confirm the answer *changed* and memory *updated* rather than appended.
-- **35–40 — lock the demo.** Three terminals lined up, both answers ready to read.
+- **25–33 — the contradiction.** `run_session_2.py`. Confirm the answer *changed* and memory *updated* rather than appended.
+- **33–37 — grade it.** `python check_memory.py`. It checks the session-2 answer + the store in ~2 seconds. A ✗ on "still routes to the retired workflow" means memory didn't override the stale fact — tighten the protocol in `create_agent.py` and re-run. This is the step that catches a demo that *looks* right but isn't.
+- **37–40 — lock the demo.** Three terminals lined up, both answers ready to read.
 
 Cut scope before you cut the demo: one clean two-session arc beats three half-finished stretch goals.
 
 ## Done when / Great when
 
-**Done when:** session 2 answers the same question with the current policy, leads with what changed, and `inspect_memory.py` shows the prod-access entry was *updated* — not two conflicting copies sitting side by side.
+**Done when:** session 2 answers the same question with the current policy, leads with what changed, and the prod-access entry was *updated* — not two conflicting copies sitting side by side. **`python check_memory.py` passes** (its scenario-agnostic floor plus any `acceptance.txt` you've set), and its advisory wired grade shows the retired workflow gone from the answer; `inspect_memory.py` shows you the store by eye.
 
 **Great when:** the memory store is something you'd let a security team read — no dumped document text, dated entries, the re-org reflected in who owns what — and you can point at the exact `[memory: ...]` write in the session-1 stream where the agent decided a fact was worth keeping.
 
@@ -95,11 +98,11 @@ The mechanics don't change with the domain — an agent, a store, two sessions, 
 - **M&A Diligence.** Round 1: a target's financial summary, org chart, IP portfolio. Round 2: newly disclosed liabilities and a financial restatement that contradicts round 1. Question: *"What's your current risk assessment of this acquisition?"* A better answer flags the contradiction as a red flag and says so explicitly.
 - **Sales Engineering.** Round 1: a customer's stack, their objections, the current pitch. Round 2: a new objection from the latest call and a competitive update. Question: *"Tomorrow's the final pitch — what's our strategy?"* A better answer anticipates the new objection instead of repeating the original plan.
 
-Same store, same two-session loop. If you want to scope memory per customer so Acme's facts never leak into Globex's answers, that's stretch goal S5.
+Same store, same two-session loop. And when you swap the docs, write what a good session-2 answer looks like for the new domain into an `acceptance.txt` (one criterion per line — plain text, `/regex/`, or `!must-not`); `check_memory.py` then grades your build against your bar, not the onboarding one. If you want to scope memory per customer so Acme's facts never leak into Globex's answers, that's stretch goal S5.
 
 ## Stretch goals
 
-Pick one after the core build — see [`stretch-goals.md`](./stretch-goals.md). The headline is the **Memory Curator** (`python stretch_memory_curator.py`): a second agent that gets the *same store* mounted and cleans it. Memory hygiene as a role, not a feature — the architecture maps straight onto how human teams keep institutional knowledge current.
+Pick one after the core build — see [`stretch-goals.md`](./stretch-goals.md). The headline is the **Memory Curator** (`python stretch_memory_curator.py`): a second agent that gets the *same store* mounted and cleans it. Memory hygiene as a role, not a feature — the architecture maps straight onto how human teams keep institutional knowledge current. Where `check_memory.py` is the required rules-based *floor*, the Curator is the LLM *ceiling* — an actual second agent reasoning over the store, not a keyword scan.
 
 ## Rules of the data
 
