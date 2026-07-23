@@ -31,7 +31,18 @@ Usage:
 """
 
 import re
+import sys
 from pathlib import Path
+
+# Windows consoles default to cp1252; the ✓ / ✗ output below crashes on a plain
+# print when stdout isn't UTF-8 (a legacy console, or stdout redirected to a
+# file). This grader imports _common only lazily (when it reads the store), so
+# its early floor/answer prints run before that guard — it carries its own here.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
 
 SESSION2 = Path("outputs/session2.txt")
 ACCEPTANCE = Path("acceptance.txt")
